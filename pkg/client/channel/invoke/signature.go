@@ -7,6 +7,8 @@ SPDX-License-Identifier: Apache-2.0
 package invoke
 
 import (
+	"time"
+
 	"github.com/hyperledger/fabric-sdk-go/pkg/client/common/verifier"
 	"github.com/hyperledger/fabric-sdk-go/pkg/common/providers/fab"
 
@@ -25,12 +27,16 @@ type SignatureValidationHandler struct {
 
 //Handle for Filtering proposal response
 func (f *SignatureValidationHandler) Handle(requestContext *RequestContext, clientContext *ClientContext) {
+	start := time.Now()
 	//Filter tx proposal responses
 	err := f.validate(requestContext.Response.Responses, clientContext)
 	if err != nil {
 		requestContext.Error = errors.WithMessage(err, "signature validation failed")
 		return
 	}
+
+	end := float32(time.Since(start)/1000) / 1000
+	logger.Infof("pfi SignatureValidationHandler time %s dur %f", start, end)
 
 	// Delegate to next step if any
 	if f.next != nil {

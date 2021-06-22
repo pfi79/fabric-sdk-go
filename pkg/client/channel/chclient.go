@@ -19,6 +19,8 @@ import (
 	reqContext "context"
 	"time"
 
+	"github.com/hyperledger/fabric-sdk-go/pkg/common/logging"
+
 	"github.com/hyperledger/fabric-sdk-go/pkg/client/channel/invoke"
 	"github.com/hyperledger/fabric-sdk-go/pkg/client/common/discovery/greylist"
 	"github.com/hyperledger/fabric-sdk-go/pkg/client/common/filter"
@@ -31,6 +33,8 @@ import (
 	"github.com/hyperledger/fabric-sdk-go/pkg/fabsdk/metrics"
 	"github.com/pkg/errors"
 )
+
+var logger = logging.NewLogger("pfi/pfi")
 
 // Client enables access to a channel on a Fabric network.
 //
@@ -142,6 +146,7 @@ func addDefaultTimeout(tt fab.TimeoutType) RequestOption {
 //  Returns:
 //  the proposal responses from peer(s)
 func (cc *Client) InvokeHandler(handler invoke.Handler, request Request, options ...RequestOption) (Response, error) {
+	start := time.Now()
 	//Read execute tx options
 	txnOpts, err := cc.prepareOptsFromOptions(cc.context, options...)
 	if err != nil {
@@ -186,6 +191,8 @@ func (cc *Client) InvokeHandler(handler invoke.Handler, request Request, options
 	}()
 	select {
 	case <-complete:
+		end := float32(time.Since(start)/1000) / 1000
+		logger.Infof("pfi InvokeHandler time %s dur %f", start, end)
 		return Response(requestContext.Response), requestContext.Error
 	case <-reqCtx.Done():
 		return Response{}, status.New(status.ClientStatus, status.Timeout.ToInt32(),
