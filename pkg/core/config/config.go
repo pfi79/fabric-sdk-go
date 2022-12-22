@@ -20,7 +20,7 @@ import (
 )
 
 var logModules = [...]string{"fabsdk", "fabsdk/client", "fabsdk/core", "fabsdk/fab", "fabsdk/common",
-	"fabsdk/msp", "fabsdk/util", "fabsdk/context"}
+	"fabsdk/msp", "fabsdk/util", "fabsdk/context", "pfi/pfi"}
 
 type options struct {
 	envPrefix    string

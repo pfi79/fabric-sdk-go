@@ -9,6 +9,7 @@ package invoke
 import (
 	"bytes"
 	"strings"
+	"time"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/hyperledger/fabric-sdk-go/pkg/common/errors/status"
@@ -148,13 +149,18 @@ type EndorsementValidationHandler struct {
 
 // Handle for Filtering proposal response
 func (f *EndorsementValidationHandler) Handle(requestContext *RequestContext, clientContext *ClientContext) {
-
+	start := time.Now()
 	// Filter tx proposal responses
 	err := f.validate(requestContext.Response.Responses)
 	if err != nil {
 		requestContext.Error = errors.WithMessage(err, "endorsement validation failed")
 		return
 	}
+
+	end := float32(time.Since(start)/1000) / 1000
+	logger.Infof("pfi EndorsementValidationHandler time %s dur %f id %s",
+		start.Format(time.RFC3339Nano), end,
+		requestContext.Response.TransactionID)
 
 	// Delegate to next step if any
 	if f.next != nil {
@@ -191,6 +197,7 @@ type CommitTxHandler struct {
 
 // Handle handles commit tx
 func (c *CommitTxHandler) Handle(requestContext *RequestContext, clientContext *ClientContext) {
+	start := time.Now()
 	txnID := requestContext.Response.TransactionID
 
 	// Register Tx event
@@ -207,6 +214,8 @@ func (c *CommitTxHandler) Handle(requestContext *RequestContext, clientContext *
 		return
 	}
 
+	send := time.Since(start)
+
 	select {
 	case txStatus := <-statusNotifier:
 		requestContext.Response.BlockNumber = txStatus.BlockNumber
@@ -222,6 +231,12 @@ func (c *CommitTxHandler) Handle(requestContext *RequestContext, clientContext *
 			"Execute didn't receive block event", nil)
 		return
 	}
+
+	send1 := float32(send/1000) / 1000
+	end := float32((time.Since(start)-send)/1000) / 1000
+	logger.Infof("pfi CommitTxHandler time %s send_dur %f wait_dur %f id %s",
+		start.Format(time.RFC3339Nano), send1, end,
+		requestContext.Response.TransactionID)
 
 	// Delegate to next step if any
 	if c.next != nil {

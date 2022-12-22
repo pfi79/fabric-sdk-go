@@ -7,17 +7,18 @@ SPDX-License-Identifier: Apache-2.0
 package invoke
 
 import (
-	selectopts "github.com/hyperledger/fabric-sdk-go/pkg/client/common/selection/options"
-	"github.com/hyperledger/fabric-sdk-go/pkg/common/errors/retry"
-	"github.com/hyperledger/fabric-sdk-go/pkg/common/options"
-	"github.com/hyperledger/fabric-sdk-go/pkg/common/providers/fab"
-	"github.com/hyperledger/fabric-sdk-go/pkg/fab/peer"
-	"github.com/pkg/errors"
+	"time"
 
 	"github.com/golang/protobuf/proto"
 	pb "github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/hyperledger/fabric-sdk-go/internal/github.com/hyperledger/fabric/core/ledger/kvledger/txmgmt/rwsetutil"
+	selectopts "github.com/hyperledger/fabric-sdk-go/pkg/client/common/selection/options"
+	"github.com/hyperledger/fabric-sdk-go/pkg/common/errors/retry"
 	"github.com/hyperledger/fabric-sdk-go/pkg/common/logging"
+	"github.com/hyperledger/fabric-sdk-go/pkg/common/options"
+	"github.com/hyperledger/fabric-sdk-go/pkg/common/providers/fab"
+	"github.com/hyperledger/fabric-sdk-go/pkg/fab/peer"
+	"github.com/pkg/errors"
 )
 
 var logger = logging.NewLogger("fabsdk/client")
@@ -46,6 +47,8 @@ func NewSelectAndEndorseHandler(next ...Handler) Handler {
 // Handle selects endorsers and sends proposals to the endorsers
 func (e *SelectAndEndorseHandler) Handle(requestContext *RequestContext, clientContext *ClientContext) {
 	var ccCalls []*fab.ChaincodeCall
+
+	start := time.Now()
 	targets := requestContext.Opts.Targets
 	if len(targets) == 0 {
 		var err error
@@ -85,6 +88,11 @@ func (e *SelectAndEndorseHandler) Handle(requestContext *RequestContext, clientC
 			}
 		}
 	}
+
+	end := float32(time.Since(start)/1000) / 1000
+	logger.Infof("pfi SelectAndEndorseHandler time %s dur %f id %s",
+		start.Format(time.RFC3339Nano), end,
+		requestContext.Response.TransactionID)
 
 	if e.next != nil {
 		e.next.Handle(requestContext, clientContext)
