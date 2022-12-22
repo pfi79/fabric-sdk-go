@@ -8,19 +8,20 @@ package invoke
 
 import (
 	"bytes"
+	"encoding/base64"
 	"strings"
+	"time"
 
 	"github.com/golang/protobuf/proto"
-	"github.com/hyperledger/fabric-sdk-go/pkg/common/errors/status"
-	"github.com/hyperledger/fabric-sdk-go/pkg/common/options"
-	"github.com/pkg/errors"
-
 	"github.com/hyperledger/fabric-protos-go/common"
 	pb "github.com/hyperledger/fabric-protos-go/peer"
 	selectopts "github.com/hyperledger/fabric-sdk-go/pkg/client/common/selection/options"
+	"github.com/hyperledger/fabric-sdk-go/pkg/common/errors/status"
+	"github.com/hyperledger/fabric-sdk-go/pkg/common/options"
 	"github.com/hyperledger/fabric-sdk-go/pkg/common/providers/fab"
 	"github.com/hyperledger/fabric-sdk-go/pkg/fab/peer"
 	"github.com/hyperledger/fabric-sdk-go/pkg/fab/txn"
+	"github.com/pkg/errors"
 )
 
 // TxnHeaderOptsProvider provides transaction header options which allow
@@ -148,13 +149,18 @@ type EndorsementValidationHandler struct {
 
 // Handle for Filtering proposal response
 func (f *EndorsementValidationHandler) Handle(requestContext *RequestContext, clientContext *ClientContext) {
-
+	start := time.Now()
 	// Filter tx proposal responses
 	err := f.validate(requestContext.Response.Responses)
 	if err != nil {
 		requestContext.Error = errors.WithMessage(err, "endorsement validation failed")
 		return
 	}
+
+	end := float32(time.Since(start)/1000) / 1000
+	logger.Infof("pfi EndorsementValidationHandler time %s dur %f id %s",
+		start.Format(time.RFC3339Nano), end,
+		requestContext.Response.TransactionID)
 
 	// Delegate to next step if any
 	if f.next != nil {
@@ -163,7 +169,10 @@ func (f *EndorsementValidationHandler) Handle(requestContext *RequestContext, cl
 }
 
 func (f *EndorsementValidationHandler) validate(txProposalResponse []*fab.TransactionProposalResponse) error {
-	var a1 *pb.ProposalResponse
+	var (
+		a1  *pb.ProposalResponse
+		a1e string
+	)
 	for n, r := range txProposalResponse {
 		response := r.ProposalResponse.GetResponse()
 		if response.Status < int32(common.Status_SUCCESS) || response.Status >= int32(common.Status_BAD_REQUEST) {
@@ -171,11 +180,43 @@ func (f *EndorsementValidationHandler) validate(txProposalResponse []*fab.Transa
 		}
 		if n == 0 {
 			a1 = r.ProposalResponse
+			a1e = r.Endorser
+
 			continue
 		}
 
 		if !bytes.Equal(a1.Payload, r.ProposalResponse.Payload) ||
 			!bytes.Equal(a1.GetResponse().Payload, response.Payload) {
+			logger.Infof(
+				"PFI1 endorser1 - %s, endorser2 - %s",
+				a1e,
+				r.Endorser,
+			)
+
+			if !bytes.Equal(a1.Payload, r.ProposalResponse.Payload) {
+				logger.Infof(
+					"PFI1 ChaincodeAction 1 - %s",
+					base64.StdEncoding.EncodeToString(a1.Payload),
+				)
+
+				logger.Infof(
+					"PFI1 ChaincodeAction 2 - %s",
+					base64.StdEncoding.EncodeToString(r.ProposalResponse.Payload),
+				)
+			}
+
+			if !bytes.Equal(a1.GetResponse().Payload, response.Payload) {
+				logger.Infof(
+					"PFI1 BatchResponse 1 - %s",
+					base64.StdEncoding.EncodeToString(a1.GetResponse().Payload),
+				)
+
+				logger.Infof(
+					"PFI1 BatchResponse 2 - %s",
+					base64.StdEncoding.EncodeToString(response.Payload),
+				)
+			}
+
 			return status.New(status.EndorserClientStatus, status.EndorsementMismatch.ToInt32(),
 				"ProposalResponsePayloads do not match", nil)
 		}
@@ -191,6 +232,7 @@ type CommitTxHandler struct {
 
 // Handle handles commit tx
 func (c *CommitTxHandler) Handle(requestContext *RequestContext, clientContext *ClientContext) {
+	start := time.Now()
 	txnID := requestContext.Response.TransactionID
 
 	// Register Tx event
@@ -207,6 +249,8 @@ func (c *CommitTxHandler) Handle(requestContext *RequestContext, clientContext *
 		return
 	}
 
+	send := time.Since(start)
+
 	select {
 	case txStatus := <-statusNotifier:
 		requestContext.Response.BlockNumber = txStatus.BlockNumber
@@ -222,6 +266,12 @@ func (c *CommitTxHandler) Handle(requestContext *RequestContext, clientContext *
 			"Execute didn't receive block event", nil)
 		return
 	}
+
+	send1 := float32(send/1000) / 1000
+	end := float32((time.Since(start)-send)/1000) / 1000
+	logger.Infof("pfi CommitTxHandler time %s send_dur %f wait_dur %f id %s",
+		start.Format(time.RFC3339Nano), send1, end,
+		requestContext.Response.TransactionID)
 
 	// Delegate to next step if any
 	if c.next != nil {
