@@ -22,6 +22,7 @@ require (
 	github.com/spf13/cast v1.3.1
 	github.com/spf13/viper v1.7.0
 	github.com/stretchr/testify v1.8.1
+	gitlab.n-t.io/atmz/foundation v0.8.1
 	golang.org/x/crypto v0.1.0
 	golang.org/x/net v0.7.0
 	google.golang.org/grpc v1.48.0
@@ -30,6 +31,7 @@ require (
 
 require (
 	github.com/beorn7/perks v1.0.1 // indirect
+	github.com/btcsuite/btcutil v1.0.2 // indirect
 	github.com/cespare/xxhash/v2 v2.1.1 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/fsnotify/fsnotify v1.4.7 // indirect
