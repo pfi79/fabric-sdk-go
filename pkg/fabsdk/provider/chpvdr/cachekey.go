@@ -99,6 +99,7 @@ func (k *eventCacheKey) String() string {
 
 type params struct {
 	permitBlockEvents bool
+	id                string
 }
 
 func defaultParams() *params {
@@ -109,8 +110,13 @@ func (p *params) PermitBlockEvents() {
 	p.permitBlockEvents = true
 }
 
+func (p *params) SetID(id string) {
+	p.id = id
+}
+
 func (p *params) getOptKey() string {
 	//	Construct opts portion
-	optKey := "blockEvents:" + strconv.FormatBool(p.permitBlockEvents)
+	optKey := "blockEvents:" + strconv.FormatBool(p.permitBlockEvents) +
+		",clientId:" + p.id
 	return optKey
 }
