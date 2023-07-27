@@ -24,6 +24,14 @@ func WithBlockEvents() ClientOption {
 	}
 }
 
+// WithClientID indicates that events servis are to be unique.
+func WithClientID(id string) ClientOption {
+	return func(c *Client) error {
+		c.id = id
+		return nil
+	}
+}
+
 // WithBlockNum indicates the block number from which events are to be received.
 // Only deliverclient supports this
 func WithBlockNum(from uint64) ClientOption {
