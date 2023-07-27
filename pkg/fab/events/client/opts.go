@@ -22,6 +22,7 @@ type params struct {
 	maxConnAttempts         uint
 	maxReconnAttempts       uint
 	permitBlockEvents       bool
+	id                      string
 	reconn                  bool
 }
 
@@ -43,6 +44,15 @@ func WithBlockEvents() options.Opt {
 	return func(p options.Params) {
 		if setter, ok := p.(permitBlockEventsSetter); ok {
 			setter.PermitBlockEvents()
+		}
+	}
+}
+
+// WithID indicates that events servis are to be unique.
+func WithID(id string) options.Opt {
+	return func(p options.Params) {
+		if setter, ok := p.(idSetter); ok {
+			setter.SetID(id)
 		}
 	}
 }
@@ -159,6 +169,11 @@ func (p *params) PermitBlockEvents() {
 	p.permitBlockEvents = true
 }
 
+func (p *params) SetID(id string) {
+	logger.Debugf("ID: %s", id)
+	p.id = id
+}
+
 type reconnectSetter interface {
 	SetReconnect(value bool)
 }
@@ -189,4 +204,8 @@ type responseTimeoutSetter interface {
 
 type permitBlockEventsSetter interface {
 	PermitBlockEvents()
+}
+
+type idSetter interface {
+	SetID(id string)
 }
