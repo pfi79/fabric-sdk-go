@@ -248,6 +248,7 @@ func broadcastEnvelopeBFT(reqCtx reqContext.Context, envelope *fab.SignedEnvelop
 
 	errs := multi.Errors{}
 	nForWait := quorum(nOrders)
+	resps := []*TxResponseWithErrMsg{}
 	// read responses
 	// if no errors in the f+1 firsts response, return successful response
 	// if error returned, wait for the next response
@@ -262,10 +263,15 @@ func broadcastEnvelopeBFT(reqCtx reqContext.Context, envelope *fab.SignedEnvelop
 		}
 
 		cntResp++
+		resps = append(resps, resp)
 
-		if cntResp >= nForWait || i+1 == nOrders {
+		if cntResp >= nForWait {
 			return resp.TxResponse, nil
 		}
+	}
+
+	if cntResp != 0 {
+		return resps[0].TxResponse, nil
 	}
 
 	return nil, errs
