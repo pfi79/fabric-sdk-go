@@ -16,6 +16,7 @@ import (
 type ChannelService interface {
 	Config() (ChannelConfig, error)
 	EventService(opts ...options.Opt) (EventService, error)
+	DeleteEventService(opts ...options.Opt) error
 	Membership() (ChannelMembership, error)
 	ChannelConfig() (ChannelCfg, error)
 	Transactor(reqCtx reqContext.Context) (Transactor, error)

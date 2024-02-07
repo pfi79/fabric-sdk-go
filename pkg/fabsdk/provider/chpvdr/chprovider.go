@@ -104,6 +104,11 @@ func (cs *ChannelService) EventService(opts ...options.Opt) (fab.EventService, e
 	return cs.ctxtCache.GetEventService(cs.channelID, opts...)
 }
 
+// DeleteEventService delete the EventService from cache.
+func (cs *ChannelService) DeleteEventService(opts ...options.Opt) error {
+	return cs.ctxtCache.DelEventService(cs.channelID, opts...)
+}
+
 // Membership returns and caches a channel member identifier
 // A membership reference is returned that refreshes with the configured interval
 func (cs *ChannelService) Membership() (fab.ChannelMembership, error) {

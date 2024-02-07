@@ -26,6 +26,7 @@ type MockChannelCfg struct {
 	MockVersions     *fab.Versions
 	MockMembership   fab.ChannelMembership
 	MockCapabilities map[fab.ConfigGroupKey]map[string]bool
+	MockIsBFT        bool
 }
 
 // NewMockChannelCfg ...
@@ -78,6 +79,11 @@ func (cfg *MockChannelCfg) HasCapability(group fab.ConfigGroupKey, capability st
 		return false
 	}
 	return capabilities[capability]
+}
+
+// Versions returns versions
+func (cfg *MockChannelCfg) IsBFT() bool {
+	return cfg.MockIsBFT
 }
 
 // MockChannelConfig mockcore query channel configuration

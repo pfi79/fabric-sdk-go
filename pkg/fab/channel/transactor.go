@@ -24,6 +24,7 @@ type Transactor struct {
 	reqCtx    reqContext.Context
 	ChannelID string
 	orderers  []fab.Orderer
+	isBFT     bool
 }
 
 // NewTransactor returns a Transactor for the current context and channel config.
@@ -39,22 +40,23 @@ func NewTransactor(reqCtx reqContext.Context, cfg fab.ChannelCfg) (*Transactor, 
 		return nil, errors.WithMessage(err, "reading orderers from channel config failed")
 	}
 	// TODO: adjust integration tests to always have valid orderers (even when doing only queries)
-	//if len(orderers) == 0 {
+	// if len(orderers) == 0 {
 	//	return nil, errors.New("orderers are not configured")
-	//}
+	// }
 
 	t := Transactor{
 		reqCtx:    reqCtx,
 		ChannelID: cfg.ID(),
 		orderers:  orderers,
+		isBFT:     cfg.IsBFT(),
 	}
 	return &t, nil
 }
 
 func orderersFromChannelCfg(ctx context.Client, cfg fab.ChannelCfg) ([]fab.Orderer, error) {
 
-	//below call to get orderers from endpoint config 'channels.<CHANNEL-ID>.orderers' is not recommended.
-	//To override any orderer configuration items, entity matchers should be used.
+	// below call to get orderers from endpoint config 'channels.<CHANNEL-ID>.orderers' is not recommended.
+	// To override any orderer configuration items, entity matchers should be used.
 	orderers, err := orderersFromChannel(ctx, cfg.ID())
 	if err != nil {
 		return nil, err
@@ -74,7 +76,7 @@ func orderersFromChannelCfg(ctx context.Client, cfg fab.ChannelCfg) ([]fab.Order
 		// Figure out orderer configuration
 		oCfg, ok := ordererDict[target]
 
-		//try entity matcher
+		// try entity matcher
 		if !ok {
 			logger.Debugf("Failed to get channel Cfg orderer [%s] from ordererDict, now trying orderer Matchers in Entity Matchers", target)
 			// Try to find a match from entityMatchers config
@@ -91,7 +93,7 @@ func orderersFromChannelCfg(ctx context.Client, cfg fab.ChannelCfg) ([]fab.Order
 			}
 		}
 
-		//create orderer using channel config block orderer address
+		// create orderer using channel config block orderer address
 		if !ok {
 			logger.Debugf("Unable to find matching ordererConfig from entity Matchers for channel Cfg Orderer [%s]", target)
 			oCfg = fab.OrdererConfig{
@@ -110,9 +112,9 @@ func orderersFromChannelCfg(ctx context.Client, cfg fab.ChannelCfg) ([]fab.Order
 	return orderers, nil
 }
 
-//deprecated
-//orderersFromChannel returns list of fab.Orderer by channel id
-//will return empty list when orderers are not found in endpoint config
+// deprecated
+// orderersFromChannel returns list of fab.Orderer by channel id
+// will return empty list when orderers are not found in endpoint config
 func orderersFromChannel(ctx context.Client, channelID string) ([]fab.Orderer, error) {
 
 	chNetworkConfig := ctx.EndpointConfig().ChannelConfig(channelID)
@@ -121,7 +123,7 @@ func orderersFromChannel(ctx context.Client, channelID string) ([]fab.Orderer, e
 
 		ordererConfig, found, ignoreOrderer := ctx.EndpointConfig().OrdererConfig(chOrderer)
 		if !found || ignoreOrderer {
-			//continue if given channel orderer not found in endpoint config
+			// continue if given channel orderer not found in endpoint config
 			continue
 		}
 
@@ -184,5 +186,5 @@ func (t *Transactor) CreateTransaction(request fab.TransactionRequest) (*fab.Tra
 
 // SendTransaction send a transaction to the chain’s orderer service (one or more orderer endpoints) for consensus and committing to the ledger.
 func (t *Transactor) SendTransaction(tx *fab.Transaction) (*fab.TransactionResponse, error) {
-	return txn.Send(t.reqCtx, tx, t.orderers)
+	return txn.Send(t.reqCtx, tx, t.orderers, t.isBFT)
 }

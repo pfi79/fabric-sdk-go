@@ -8,11 +8,11 @@ SPDX-License-Identifier: Apache-2.0
 // Channel client can query chaincode, execute chaincode and register/unregister for chaincode events on specific channel.
 // An application that requires interaction with multiple channels should create a separate instance of the channel client for each channel.
 //
-//  Basic Flow:
-//  1) Prepare channel client context
-//  2) Create channel client
-//  3) Execute chaincode
-//  4) Query chaincode
+//	Basic Flow:
+//	1) Prepare channel client context
+//	2) Create channel client
+//	3) Execute chaincode
+//	4) Query chaincode
 package channel
 
 import (
@@ -47,19 +47,10 @@ type Client struct {
 	eventService fab.EventService
 	greylist     *greylist.Filter
 	metrics      *metrics.ClientMetrics
-	isSmartBFT   bool
 }
 
 // ClientOption describes a functional parameter for the New constructor
 type ClientOption func(*Client) error
-
-// WithSmartBFT injects sending to SmartBFT cluster
-func WithSmartBFT() ClientOption {
-	return func(c *Client) error {
-		c.isSmartBFT = true
-		return nil
-	}
-}
 
 // New returns a Client instance. Channel client can query chaincode, execute chaincode and register/unregister for chaincode events on specific channel.
 func New(channelProvider context.ChannelProvider, opts ...ClientOption) (*Client, error) {
@@ -88,7 +79,7 @@ func New(channelProvider context.ChannelProvider, opts ...ClientOption) (*Client
 	channelClient := newClient(channelContext, membership, eventService, greylistProvider)
 
 	for _, param := range opts {
-		err := param(&channelClient)
+		err = param(&channelClient)
 		if err != nil {
 			return nil, errors.WithMessage(err, "option failed")
 		}
@@ -98,12 +89,13 @@ func New(channelProvider context.ChannelProvider, opts ...ClientOption) (*Client
 }
 
 // Query chaincode using request and optional request options
-//  Parameters:
-//  request holds info about mandatory chaincode ID and function
-//  options holds optional request options
 //
-//  Returns:
-//  the proposal responses from peer(s)
+//	Parameters:
+//	request holds info about mandatory chaincode ID and function
+//	options holds optional request options
+//
+//	Returns:
+//	the proposal responses from peer(s)
 func (cc *Client) Query(request Request, options ...RequestOption) (Response, error) {
 
 	options = append(options, addDefaultTimeout(fab.Query))
@@ -113,12 +105,13 @@ func (cc *Client) Query(request Request, options ...RequestOption) (Response, er
 }
 
 // Execute prepares and executes transaction using request and optional request options
-//  Parameters:
-//  request holds info about mandatory chaincode ID and function
-//  options holds optional request options
 //
-//  Returns:
-//  the proposal responses from peer(s)
+//	Parameters:
+//	request holds info about mandatory chaincode ID and function
+//	options holds optional request options
+//
+//	Returns:
+//	the proposal responses from peer(s)
 func (cc *Client) Execute(request Request, options ...RequestOption) (Response, error) {
 	options = append(options, addDefaultTimeout(fab.Execute))
 	options = append(options, addDefaultTargetFilter(cc.context, filter.EndorsingPeer))
@@ -147,13 +140,14 @@ func addDefaultTimeout(tt fab.TimeoutType) RequestOption {
 }
 
 // InvokeHandler invokes handler using request and optional request options provided
-//  Parameters:
-//  handler to be invoked
-//  request holds info about mandatory chaincode ID and function
-//  options holds optional request options
 //
-//  Returns:
-//  the proposal responses from peer(s)
+//	Parameters:
+//	handler to be invoked
+//	request holds info about mandatory chaincode ID and function
+//	options holds optional request options
+//
+//	Returns:
+//	the proposal responses from peer(s)
 func (cc *Client) InvokeHandler(handler invoke.Handler, request Request, options ...RequestOption) (Response, error) {
 	start := time.Now()
 	// Read execute tx options
@@ -227,8 +221,6 @@ func (cc *Client) createReqContext(txnOpts *requestOptions) (reqContext.Context,
 		contextImpl.WithParent(txnOpts.ParentContext))
 	// Add timeout overrides here as a value so that it can be used by immediate child contexts (in handlers/transactors)
 	reqCtx = reqContext.WithValue(reqCtx, contextImpl.ReqContextTimeoutOverrides, txnOpts.Timeouts)
-	// Add isSmartBFT flag
-	reqCtx = reqContext.WithValue(reqCtx, contextImpl.ReqContextSmartBft, cc.isSmartBFT)
 
 	return reqCtx, cancel
 }
@@ -306,20 +298,22 @@ func (cc *Client) prepareOptsFromOptions(ctx context.Client, options ...RequestO
 }
 
 // RegisterChaincodeEvent registers for chaincode events. Unregister must be called when the registration is no longer needed.
-//  Parameters:
-//  chaincodeID is the chaincode ID for which events are to be received
-//  eventFilter is the chaincode event filter (regular expression) for which events are to be received
 //
-//  Returns:
-//  the registration and a channel that is used to receive events. The channel is closed when Unregister is called.
+//	Parameters:
+//	chaincodeID is the chaincode ID for which events are to be received
+//	eventFilter is the chaincode event filter (regular expression) for which events are to be received
+//
+//	Returns:
+//	the registration and a channel that is used to receive events. The channel is closed when Unregister is called.
 func (cc *Client) RegisterChaincodeEvent(chainCodeID string, eventFilter string) (fab.Registration, <-chan *fab.CCEvent, error) {
 	// Register callback for CE
 	return cc.eventService.RegisterChaincodeEvent(chainCodeID, eventFilter)
 }
 
 // UnregisterChaincodeEvent removes the given registration and closes the event channel.
-//  Parameters:
-//  registration is the registration handle that was returned from RegisterChaincodeEvent method
+//
+//	Parameters:
+//	registration is the registration handle that was returned from RegisterChaincodeEvent method
 func (cc *Client) UnregisterChaincodeEvent(registration fab.Registration) {
 	cc.eventService.Unregister(registration)
 }

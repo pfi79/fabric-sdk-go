@@ -21,6 +21,17 @@ type MockChannelService struct {
 		result1 fab.ChannelConfig
 		result2 error
 	}
+	DeleteEventServiceStub        func(opts ...options.Opt) error
+	deleteEventServiceMutex       sync.RWMutex
+	deleteEventServiceArgsForCall []struct {
+		opts []options.Opt
+	}
+	deleteEventServiceReturns struct {
+		result1 error
+	}
+	deleteEventServiceReturnsOnCall map[int]struct {
+		result1 error
+	}
 	EventServiceStub        func(opts ...options.Opt) (fab.EventService, error)
 	eventServiceMutex       sync.RWMutex
 	eventServiceArgsForCall []struct {
@@ -187,6 +198,54 @@ func (fake *MockChannelService) EventServiceReturnsOnCall(i int, result1 fab.Eve
 		result1 fab.EventService
 		result2 error
 	}{result1, result2}
+}
+
+func (fake *MockChannelService) DeleteEventService(opts ...options.Opt) error {
+	fake.deleteEventServiceMutex.Lock()
+	ret, specificReturn := fake.deleteEventServiceReturnsOnCall[len(fake.deleteEventServiceArgsForCall)]
+	fake.deleteEventServiceArgsForCall = append(fake.deleteEventServiceArgsForCall, struct {
+		opts []options.Opt
+	}{opts})
+	fake.recordInvocation("DeleteEventService", []interface{}{opts})
+	fake.deleteEventServiceMutex.Unlock()
+	if fake.DeleteEventServiceStub != nil {
+		return fake.DeleteEventServiceStub(opts...)
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	return fake.deleteEventServiceReturns.result1
+}
+
+func (fake *MockChannelService) DeleteEventServiceCallCount() int {
+	fake.deleteEventServiceMutex.RLock()
+	defer fake.deleteEventServiceMutex.RUnlock()
+	return len(fake.deleteEventServiceArgsForCall)
+}
+
+func (fake *MockChannelService) DeleteEventServiceArgsForCall(i int) []options.Opt {
+	fake.deleteEventServiceMutex.RLock()
+	defer fake.deleteEventServiceMutex.RUnlock()
+	return fake.deleteEventServiceArgsForCall[i].opts
+}
+
+func (fake *MockChannelService) DeleteEventServiceReturns(result1 error) {
+	fake.DeleteEventServiceStub = nil
+	fake.deleteEventServiceReturns = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *MockChannelService) DeleteEventServiceReturnsOnCall(i int, result1 error) {
+	fake.DeleteEventServiceStub = nil
+	if fake.deleteEventServiceReturnsOnCall == nil {
+		fake.deleteEventServiceReturnsOnCall = make(map[int]struct {
+			result1 error
+		})
+	}
+	fake.deleteEventServiceReturnsOnCall[i] = struct {
+		result1 error
+	}{result1}
 }
 
 func (fake *MockChannelService) Membership() (fab.ChannelMembership, error) {
