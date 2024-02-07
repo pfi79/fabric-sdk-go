@@ -22,6 +22,7 @@ type MockTransactor struct {
 	ChannelID string
 	Orderers  []fab.Orderer
 	Err       error
+	IsBFT     bool
 }
 
 // CreateTransactionHeader creates a Transaction Header based on the current context.
@@ -54,5 +55,5 @@ func (t *MockTransactor) CreateTransaction(request fab.TransactionRequest) (*fab
 func (t *MockTransactor) SendTransaction(tx *fab.Transaction) (*fab.TransactionResponse, error) {
 	rqtx, cancel := contextImpl.NewRequest(t.Ctx, contextImpl.WithTimeout(10*time.Second))
 	defer cancel()
-	return txn.Send(rqtx, tx, t.Orderers)
+	return txn.Send(rqtx, tx, t.Orderers, t.IsBFT)
 }

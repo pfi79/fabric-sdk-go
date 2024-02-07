@@ -241,7 +241,7 @@ func NewLocal(clientProvider context.ClientProvider) (*Local, error) {
 	}
 
 	if ci, ok := discoveryService.(localServiceInit); ok {
-		if err := ci.Initialize(local); err != nil {
+		if err = ci.Initialize(local); err != nil {
 			return nil, err
 		}
 	}
@@ -287,7 +287,6 @@ type reqContextKey string
 
 // ReqContextTimeoutOverrides key for grpc context value of timeout overrides
 var ReqContextTimeoutOverrides = reqContextKey("timeout-overrides")
-var ReqContextSmartBft = reqContextKey("smart-bft")
 var reqContextCommManager = reqContextKey("commManager")
 var reqContextClient = reqContextKey("clientContext")
 
@@ -362,12 +361,6 @@ func RequestCommManager(ctx reqContext.Context) (fab.CommManager, bool) {
 func RequestClientContext(ctx reqContext.Context) (context.Client, bool) {
 	clientContext, ok := ctx.Value(reqContextClient).(context.Client)
 	return clientContext, ok
-}
-
-// RequestSmartBFT extracts the isSmartBFT flag from the request-scoped context.
-func RequestSmartBFT(ctx reqContext.Context) (bool, bool) {
-	isSmartBFT, ok := ctx.Value(ReqContextSmartBft).(bool)
-	return isSmartBFT, ok
 }
 
 // requestTimeoutOverrides extracts the timeout from timeout override map from the request-scoped context.
