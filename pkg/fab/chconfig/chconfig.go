@@ -14,6 +14,7 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/hyperledger/fabric-protos-go/common"
 	mb "github.com/hyperledger/fabric-protos-go/msp"
+	ab "github.com/hyperledger/fabric-protos-go/orderer"
 	pb "github.com/hyperledger/fabric-protos-go/peer"
 	channelConfig "github.com/hyperledger/fabric-sdk-go/internal/github.com/hyperledger/fabric/common/channelconfig"
 	imsp "github.com/hyperledger/fabric-sdk-go/internal/github.com/hyperledger/fabric/msp"
@@ -30,7 +31,7 @@ import (
 
 var logger = logging.NewLogger("fabsdk/fab")
 
-//overrideRetryHandler is private and used for unit-tests to test query retry behaviors
+// overrideRetryHandler is private and used for unit-tests to test query retry behaviors
 var overrideRetryHandler retry.Handler
 var versionCapabilityPattern = regexp.MustCompile(`^V(\d+(_\d+?)*)$`)
 
@@ -39,8 +40,8 @@ type Opts struct {
 	Orderer      fab.Orderer // if configured, channel config will be retrieved from this orderer
 	Targets      []fab.Peer  // if configured, channel config will be retrieved from peers (targets)
 	MinResponses int         // used with targets option; min number of success responses (from targets/peers)
-	MaxTargets   int         //if configured, channel config will be retrieved for these number of random targets
-	RetryOpts    retry.Opts  //opts for channel query retry handler
+	MaxTargets   int         // if configured, channel config will be retrieved for these number of random targets
+	RetryOpts    retry.Opts  // opts for channel query retry handler
 }
 
 // Option func for each Opts argument
@@ -67,6 +68,7 @@ type ChannelCfg struct {
 	orderers     []string
 	versions     *fab.Versions
 	capabilities map[fab.ConfigGroupKey]map[string]bool
+	isBFT        bool
 }
 
 // NewChannelCfg creates channel cfg
@@ -126,6 +128,11 @@ func (cfg *ChannelCfg) HasCapability(group fab.ConfigGroupKey, capability string
 		}
 	}
 	return false
+}
+
+// IsBFT returns bool
+func (cfg *ChannelCfg) IsBFT() bool {
+	return cfg.isBFT
 }
 
 // New channel config implementation
@@ -194,7 +201,7 @@ func (c *ChannelConfig) queryBlockFromPeers(reqCtx reqContext.Context) (*common.
 
 	retryHandler := retry.New(c.opts.RetryOpts)
 
-	//Unit test purpose only
+	// Unit test purpose only
 	if overrideRetryHandler != nil {
 		retryHandler = overrideRetryHandler
 	}
@@ -250,22 +257,22 @@ func (c *ChannelConfig) queryBlockFromOrderer(reqCtx reqContext.Context) (*commo
 	return resource.LastConfigFromOrderer(reqCtx, c.channelID, c.opts.Orderer, resource.WithRetry(c.opts.RetryOpts))
 }
 
-//resolveOptsFromConfig loads opts from config if not loaded/initialized
+// resolveOptsFromConfig loads opts from config if not loaded/initialized
 func (c *ChannelConfig) resolveOptsFromConfig(ctx context.Client) {
 
 	if c.opts.MaxTargets != 0 && c.opts.MinResponses != 0 && c.opts.RetryOpts.RetryableCodes != nil {
-		//already loaded
+		// already loaded
 		return
 	}
 
 	chSdkCfg := ctx.EndpointConfig().ChannelConfig(c.channelID)
 
-	//resolve opts
+	// resolve opts
 	c.resolveMaxResponsesOptsFromConfig(chSdkCfg)
 	c.resolveMinResponsesOptsFromConfig(chSdkCfg)
 	c.resolveRetryOptsFromConfig(chSdkCfg)
 
-	//apply default to missing opts
+	// apply default to missing opts
 	c.applyDefaultOpts()
 
 }
@@ -532,16 +539,19 @@ func loadConfigValue(configItems *ChannelCfg, key string, versionsValue *common.
 		if err := loadCapabilities(configValue, configItems, groupName); err != nil {
 			return err
 		}
-	//case channelConfig.ConsensusTypeKey:
-	//	consensusType := &ab.ConsensusType{}
-	//	err := proto.Unmarshal(configValue.Value, consensusType)
-	//	if err != nil {
-	//		return errors.Wrap(err, "unmarshal ConsensusType from config failed")
-	//	}
-	//
-	//	logger.Debugf("loadConfigValue - %s   - Consensus type value :: %s", groupName, consensusType.Type)
+	case channelConfig.ConsensusTypeKey:
+		consensusType := new(ab.ConsensusType)
+		if err := proto.Unmarshal(configValue.Value, consensusType); err != nil {
+			return errors.Wrap(err, "unmarshal ConsensusType from config failed")
+		}
+		// smartbft - our version 2.5
+		// BFT - vanilla version 3.0 and higher
+		if consensusType.Type == "smartbft" || consensusType.Type == "BFT" {
+			configItems.isBFT = true
+		}
+		logger.Debugf("loadConfigValue - %s - Consensus type value :: %s", groupName, consensusType.Type)
 	//	// TODO: Do something with this value
-	//case channelConfig.BatchSizeKey:
+	// case channelConfig.BatchSizeKey:
 	//	batchSize := &ab.BatchSize{}
 	//	err := proto.Unmarshal(configValue.Value, batchSize)
 	//	if err != nil {
@@ -550,7 +560,7 @@ func loadConfigValue(configItems *ChannelCfg, key string, versionsValue *common.
 	//
 	//	// TODO: Do something with this value
 
-	//case channelConfig.BatchTimeoutKey:
+	// case channelConfig.BatchTimeoutKey:
 	//	batchTimeout := &ab.BatchTimeout{}
 	//	err := proto.Unmarshal(configValue.Value, batchTimeout)
 	//	if err != nil {
@@ -558,7 +568,7 @@ func loadConfigValue(configItems *ChannelCfg, key string, versionsValue *common.
 	//	}
 	//	// TODO: Do something with this value
 
-	//case channelConfig.ChannelRestrictionsKey:
+	// case channelConfig.ChannelRestrictionsKey:
 	//	channelRestrictions := &ab.ChannelRestrictions{}
 	//	err := proto.Unmarshal(configValue.Value, channelRestrictions)
 	//	if err != nil {
@@ -566,7 +576,7 @@ func loadConfigValue(configItems *ChannelCfg, key string, versionsValue *common.
 	//	}
 	//	// TODO: Do something with this value
 
-	//case channelConfig.HashingAlgorithmKey:
+	// case channelConfig.HashingAlgorithmKey:
 	//	hashingAlgorithm := &common.HashingAlgorithm{}
 	//	err := proto.Unmarshal(configValue.Value, hashingAlgorithm)
 	//	if err != nil {
@@ -574,7 +584,7 @@ func loadConfigValue(configItems *ChannelCfg, key string, versionsValue *common.
 	//	}
 	//	// TODO: Do something with this value
 
-	//case channelConfig.ConsortiumKey:
+	// case channelConfig.ConsortiumKey:
 	//	consortium := &common.Consortium{}
 	//	err := proto.Unmarshal(configValue.Value, consortium)
 	//	if err != nil {
@@ -582,7 +592,7 @@ func loadConfigValue(configItems *ChannelCfg, key string, versionsValue *common.
 	//	}
 	//	// TODO: Do something with this value
 
-	//case channelConfig.BlockDataHashingStructureKey:
+	// case channelConfig.BlockDataHashingStructureKey:
 	//	bdhstruct := &common.BlockDataHashingStructure{}
 	//	err := proto.Unmarshal(configValue.Value, bdhstruct)
 	//	if err != nil {
@@ -610,7 +620,7 @@ func peersToTxnProcessors(peers []fab.Peer) []fab.ProposalProcessor {
 	return tpp
 }
 
-//randomMaxTargets returns random sub set of max length targets
+// randomMaxTargets returns random sub set of max length targets
 func randomMaxTargets(targets []fab.ProposalProcessor, max int) []fab.ProposalProcessor {
 	if len(targets) <= max {
 		return targets

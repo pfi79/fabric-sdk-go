@@ -18,12 +18,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/hyperledger/fabric-protos-go/common"
+	pb "github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/hyperledger/fabric-sdk-go/pkg/common/providers/fab"
 	"github.com/hyperledger/fabric-sdk-go/pkg/context"
 	"github.com/hyperledger/fabric-sdk-go/pkg/fab/mocks"
 	mspmocks "github.com/hyperledger/fabric-sdk-go/pkg/msp/test/mockmsp"
-	"github.com/hyperledger/fabric-protos-go/common"
-	pb "github.com/hyperledger/fabric-protos-go/peer"
 )
 
 func TestNewTransaction(t *testing.T) {
@@ -32,12 +32,12 @@ func TestNewTransaction(t *testing.T) {
 		Proposal:          &fab.TransactionProposal{Proposal: &pb.Proposal{}},
 		ProposalResponses: []*fab.TransactionProposalResponse{},
 	}
-	//Test Empty proposal response scenario
+	// Test Empty proposal response scenario
 	_, err := New(txnReq)
 	require.Error(t, err, "Proposal response was supposed to fail in Create Transaction, for empty proposal response scenario")
 	require.Equalf(t, "at least one proposal response is necessary", err.Error(), "Proposal response was supposed to fail in Create Transaction, for empty proposal response scenario, got: \n \"%s\"", err.Error())
 
-	//Test invalid proposal header scenario
+	// Test invalid proposal header scenario
 
 	th := TransactionHeader{
 		id: "1234",
@@ -61,7 +61,7 @@ func TestNewTransaction(t *testing.T) {
 	require.Error(t, err, "Proposal response was supposed to fail in Create Transaction, invalid proposal header scenario")
 	require.Containsf(t, err.Error(), "unmarshal", "Proposal response was supposed to fail in Create Transaction, invalid proposal header scenario - %s", err.Error())
 
-	//Test invalid proposal payload scenario
+	// Test invalid proposal payload scenario
 	proposal = fab.TransactionProposal{
 		TxnID:    fab.TransactionID(th.id),
 		Proposal: &pb.Proposal{Header: []byte(""), Extension: []byte(""), Payload: []byte("TEST")},
@@ -80,7 +80,7 @@ func TestNewTransaction(t *testing.T) {
 	require.Error(t, err, "Proposal response was supposed to fail in Create Transaction, invalid proposal payload scenario")
 	require.Containsf(t, err.Error(), "unmarshal", "Proposal response was supposed to fail in Create Transaction, invalid proposal payload scenario - %s", err.Error())
 
-	//Test proposal response
+	// Test proposal response
 	proposal = fab.TransactionProposal{
 		TxnID:    fab.TransactionID(th.id),
 		Proposal: &pb.Proposal{Header: []byte(""), Extension: []byte(""), Payload: []byte("")},
@@ -99,10 +99,10 @@ func TestNewTransaction(t *testing.T) {
 	require.Error(t, err, "Proposal response was supposed to fail in Create Transaction")
 	require.Equalf(t, "proposal response was not successful, error code 99, msg success", err.Error(), "Proposal response was supposed to fail in Create Transaction, got: \n \"%s\"", err.Error())
 
-	//Test repeated field header nil scenario
+	// Test repeated field header nil scenario
 	checkRepeatedFieldHeader(proposal, th, proposalResp, txnReq, t)
 
-	//TODO: Need actual sample payload for success case
+	// TODO: Need actual sample payload for success case
 
 }
 
@@ -130,7 +130,7 @@ func TestBroadcastEnvelope(t *testing.T) {
 
 	lsnr1 := make(chan *fab.SignedEnvelope)
 	lsnr2 := make(chan *fab.SignedEnvelope)
-	//Create mock orderers
+	// Create mock orderers
 	orderer1 := mocks.NewMockOrderer("1", lsnr1)
 	orderer2 := mocks.NewMockOrderer("2", lsnr2)
 
@@ -193,7 +193,7 @@ func checkBroadcastCount(broadcastCount int, orderer1 *mocks.MockOrderer, ordere
 
 func TestBroadcastPayloadWithOrdererDialFailure(t *testing.T) {
 	ordererAddr := "127.0.0.1:0"
-	//Create mock orderers
+	// Create mock orderers
 	orderer1 := mocks.NewMockGrpcOrderer(ordererAddr, nil)
 	orderer1.Start()
 	orderer2 := mocks.NewMockGrpcOrderer(ordererAddr, nil)
@@ -239,28 +239,28 @@ func TestBroadcastPayloadWithOrdererDialFailure(t *testing.T) {
 }
 
 func TestSendTransaction(t *testing.T) {
-	//Setup channel
+	// Setup channel
 	user := mspmocks.NewMockSigningIdentity("test", "1234")
 	ctx := mocks.NewMockContext(user)
 
 	reqCtx, cancel := context.NewRequest(ctx, context.WithTimeout(10*time.Second))
 	defer cancel()
 
-	response, err := Send(reqCtx, nil, nil)
+	response, err := Send(reqCtx, nil, nil, false)
 
-	//Expect orderer is nil error
+	// Expect orderer is nil error
 	require.Nil(t, response, "Test SendTransaction failed, it was supposed to fail with 'orderers is nil' error")
 	require.Error(t, err, "Test SendTransaction failed, it was supposed to fail with 'orderers is nil' error")
 	require.Equalf(t, "orderers is nil", err.Error(), "Test SendTransaction failed, it was supposed to fail with 'orderers is nil' error, got: \n \"%s\"", err.Error())
 
-	//Create mock orderer
+	// Create mock orderer
 	orderer := mocks.NewMockOrderer("", nil)
 	orderers := []fab.Orderer{orderer}
 
-	//Call Send Transaction with nil tx
-	response, err = Send(reqCtx, nil, orderers)
+	// Call Send Transaction with nil tx
+	response, err = Send(reqCtx, nil, orderers, false)
 
-	//Expect tx is nil error
+	// Expect tx is nil error
 	require.Nil(t, response, "Test SendTransaction failed, it was supposed to fail with 'transaction is nil' error")
 	require.Error(t, err, "Test SendTransaction failed, it was supposed to fail with 'transaction is nil' error")
 	require.Equalf(t, "transaction is nil", err.Error(), "Test SendTransaction failed, it was supposed to fail with 'transaction is nil' error, got: \n \"%s\"", err.Error())
@@ -269,43 +269,43 @@ func TestSendTransaction(t *testing.T) {
 }
 
 func testSendTransaction(reqCtx reqContext.Context, orderers []fab.Orderer, t *testing.T) {
-	//Create tx with nil proposal
+	// Create tx with nil proposal
 	txn := fab.Transaction{
 		Proposal: &fab.TransactionProposal{
 			Proposal: nil,
 		},
 		Transaction: &pb.Transaction{},
 	}
-	//Call Send Transaction with nil proposal
-	response, err := Send(reqCtx, &txn, orderers)
-	//Expect proposal is nil error
+	// Call Send Transaction with nil proposal
+	response, err := Send(reqCtx, &txn, orderers, false)
+	// Expect proposal is nil error
 	require.Nil(t, response, "Test SendTransaction failed, it was supposed to fail with 'proposal is nil' error")
 	require.Error(t, err, "Test SendTransaction failed, it was supposed to fail with 'proposal is nil' error")
 	require.Equalf(t, "proposal is nil", err.Error(), "Test SendTransaction failed, it was supposed to fail with 'proposal is nil' error, got: \n \"%s\"", err.Error())
 
-	//Create tx with improper proposal header
+	// Create tx with improper proposal header
 	txn = fab.Transaction{
 		Proposal: &fab.TransactionProposal{
 			Proposal: &pb.Proposal{Header: []byte("TEST")},
 		},
 		Transaction: &pb.Transaction{},
 	}
-	//Call Send Transaction
-	response, err = Send(reqCtx, &txn, orderers)
-	//Expect header unmarshal error
+	// Call Send Transaction
+	response, err = Send(reqCtx, &txn, orderers, false)
+	// Expect header unmarshal error
 	require.Nil(t, response, "Test SendTransaction failed, it was supposed to fail with '...unmarshal...' error")
 	require.Error(t, err, "Test SendTransaction failed, it was supposed to fail with '...unmarshal...' error")
 	require.Containsf(t, err.Error(), "unmarshal", "Test SendTransaction failed with a wrong error, got: \n \"%s\"", err.Error())
 
-	//Create tx with proper proposal header
+	// Create tx with proper proposal header
 	txn = fab.Transaction{
 		Proposal: &fab.TransactionProposal{
 			Proposal: &pb.Proposal{Header: []byte(""), Payload: []byte(""), Extension: []byte("")},
 		},
 		Transaction: &pb.Transaction{},
 	}
-	//Call Send Transaction
-	response, err = Send(reqCtx, &txn, orderers)
+	// Call Send Transaction
+	response, err = Send(reqCtx, &txn, orderers, false)
 	require.NotNil(t, response, "Test valid SendTransaction did not return a valid response")
 	require.NoError(t, err, "Test valid SendTransaction failed")
 }
@@ -362,7 +362,7 @@ func TestConcurrentOrderers(t *testing.T) {
 	reqCtx, cancel := context.NewRequest(ctx, context.WithTimeout(10*time.Second))
 	defer cancel()
 
-	_, err = Send(reqCtx, &txn, orderers)
+	_, err = Send(reqCtx, &txn, orderers, false)
 	require.NoError(t, err, "SendTransaction returned error")
 }
 
