@@ -54,6 +54,7 @@ type Dispatcher struct {
 	handlers                   map[reflect.Type]Handler
 	txRegistrations            map[string]*TxStatusReg
 	ccRegistrations            map[string]*ChaincodeReg
+	dispReadyCh                chan struct{}
 }
 
 // New creates a new Dispatcher.
@@ -71,6 +72,7 @@ func New(opts ...options.Opt) *Dispatcher {
 		ccRegistrations: make(map[string]*ChaincodeReg),
 		state:           dispatcherStateInitial,
 		lastBlockNum:    math.MaxUint64,
+		dispReadyCh:     make(chan struct{}),
 	}
 }
 
@@ -302,6 +304,7 @@ func (ed *Dispatcher) handleRegisterBlockEvent(e Event) {
 
 func (ed *Dispatcher) registerBlockEvent(reg *BlockReg) {
 	ed.blockRegistrations = append(ed.blockRegistrations, reg)
+	ed.checkDispReady()
 }
 
 func (ed *Dispatcher) handleRegisterFilteredBlockEvent(e Event) {
@@ -312,6 +315,7 @@ func (ed *Dispatcher) handleRegisterFilteredBlockEvent(e Event) {
 
 func (ed *Dispatcher) registerFilteredBlockEvent(reg *FilteredBlockReg) {
 	ed.filteredBlockRegistrations = append(ed.filteredBlockRegistrations, reg)
+	ed.checkDispReady()
 }
 
 func (ed *Dispatcher) handleRegisterCCEvent(e Event) {
@@ -322,7 +326,7 @@ func (ed *Dispatcher) handleRegisterCCEvent(e Event) {
 		event.ErrCh <- errors.Wrapf(err, "error compiling regular expression for event filter [%s]", event.Reg.EventFilter)
 	} else {
 		event.Reg.EventRegExp = regExp
-		if err := ed.registerCCEvent(event.Reg); err != nil {
+		if err = ed.registerCCEvent(event.Reg); err != nil {
 			event.ErrCh <- err
 		} else {
 			event.RegCh <- event.Reg
@@ -336,6 +340,7 @@ func (ed *Dispatcher) registerCCEvent(reg *ChaincodeReg) error {
 		return errors.Errorf("registration already exists for chaincode [%s] and event [%s]", reg.ChaincodeID, reg.EventFilter)
 	}
 	ed.ccRegistrations[key] = reg
+	ed.checkDispReady()
 	return nil
 }
 
@@ -354,6 +359,7 @@ func (ed *Dispatcher) registerTxStatusEvent(reg *TxStatusReg) error {
 		return errors.Errorf("registration already exists for TX ID [%s]", reg.TxID)
 	}
 	ed.txRegistrations[reg.TxID] = reg
+	ed.checkDispReady()
 	return nil
 }
 
@@ -391,6 +397,10 @@ func (ed *Dispatcher) handleFilteredBlockEvent(e Event) {
 func (ed *Dispatcher) handleRegistrationInfoEvent(e Event) {
 	evt := e.(*RegistrationInfoEvent)
 
+	evt.RegInfoCh <- ed.regInfo()
+}
+
+func (ed *Dispatcher) regInfo() *RegistrationInfo {
 	regInfo := &RegistrationInfo{
 		NumBlockRegistrations:         len(ed.blockRegistrations),
 		NumFilteredBlockRegistrations: len(ed.filteredBlockRegistrations),
@@ -401,7 +411,21 @@ func (ed *Dispatcher) handleRegistrationInfoEvent(e Event) {
 	regInfo.TotalRegistrations =
 		regInfo.NumBlockRegistrations + regInfo.NumFilteredBlockRegistrations + regInfo.NumCCRegistrations + regInfo.NumTxStatusRegistrations
 
-	evt.RegInfoCh <- regInfo
+	return regInfo
+}
+
+func (ed *Dispatcher) checkDispReady() {
+	select {
+	case <-ed.dispReadyCh:
+	default:
+		if ed.regInfo().TotalRegistrations != 0 {
+			close(ed.dispReadyCh)
+		}
+	}
+}
+
+func (ed *Dispatcher) DispReady() <-chan struct{} {
+	return ed.dispReadyCh
 }
 
 func (ed *Dispatcher) newSnapshot() fab.EventSnapshot {
@@ -651,7 +675,7 @@ func (ed *Dispatcher) RegisterHandler(t interface{}, h Handler) {
 	}
 }
 
-//UpdateLastBlockInfoOnly sets is next event should only be used for updating last block info.
+// UpdateLastBlockInfoOnly sets is next event should only be used for updating last block info.
 func (ed *Dispatcher) UpdateLastBlockInfoOnly() {
 	ed.updateLastBlockInfoOnly = true
 }
@@ -698,7 +722,7 @@ func getFilteredTx(data []byte, txValidationCode pb.TxValidationCode) (*pb.Filte
 
 	channelHeaderBytes := payload.Header.ChannelHeader
 	channelHeader := &cb.ChannelHeader{}
-	if err := proto.Unmarshal(channelHeaderBytes, channelHeader); err != nil {
+	if err = proto.Unmarshal(channelHeaderBytes, channelHeader); err != nil {
 		return nil, "", errors.Wrap(err, "error extracting ChannelHeader from payload")
 	}
 

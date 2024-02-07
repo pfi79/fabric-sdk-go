@@ -19,7 +19,6 @@ func newClient(channelContext context.Channel, membership fab.ChannelMembership,
 		greylist:     greylistProvider,
 		context:      channelContext,
 		metrics:      channelContext.GetMetrics(),
-		isSmartBFT:   false,
 	}
 	return channelClient
 }

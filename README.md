@@ -8,6 +8,32 @@
 [![codecov](https://codecov.io/gh/hyperledger/fabric-sdk-go/branch/main/graph/badge.svg)](https://codecov.io/gh/hyperledger/fabric-sdk-go)
 [![Go Report Card](https://goreportcard.com/badge/github.com/hyperledger/fabric-sdk-go)](https://goreportcard.com/report/github.com/hyperledger/fabric-sdk-go)
 
+## TOC
+
+- [Hyperledger Fabric Client SDK for Go](#hyperledger-fabric-client-sdk-for-go)
+  - [TOC](#toc)
+  - [Description](#description)
+  - [Getting started](#getting-started)
+    - [Documentation](#documentation)
+    - [Examples](#examples)
+    - [Community](#community)
+  - [Client SDK](#client-sdk)
+    - [Current Compatibility](#current-compatibility)
+    - [Retired versions](#retired-versions)
+    - [Running the test suite](#running-the-test-suite)
+    - [Go Tags](#go-tags)
+  - [Contributing to the Go SDK](#contributing-to-the-go-sdk)
+    - [Running a portion of the test suite](#running-a-portion-of-the-test-suite)
+    - [Running package unit tests manually](#running-package-unit-tests-manually)
+    - [Running integration tests manually](#running-integration-tests-manually)
+      - [Testing with Fabric Images at Docker Hub](#testing-with-fabric-images-at-docker-hub)
+      - [Running Integration Tests](#running-integration-tests)
+      - [Testing with Local Build of Fabric (Advanced)](#testing-with-local-build-of-fabric-advanced)
+  - [License](#license)
+  - [Links](#links)
+
+## Description
+
 This SDK enables Go developers to build solutions that interact with [Hyperledger Fabric](http://hyperledger-fabric.readthedocs.io/en/latest/).
 
 ## Getting started
@@ -181,7 +207,7 @@ make integration-tests-local
 #go test -args testLocal=true
 
 #cd fabric-sdk-go/test/integration/orgs
-#go test -args testLocal=true 
+#go test -args testLocal=true
 
 # You should review test/scripts/integration.sh for options and details.
 # Note: you should generally prefer the scripted version to setup parameters for you.
@@ -198,7 +224,13 @@ make dockerenv-latest-up
 
 ## License
 
+Apache 2.0
+
 Hyperledger Fabric SDK Go software is licensed under the [Apache License Version 2.0](LICENSE).
 
 ---
 This document is licensed under a <a rel="license" href="http://creativecommons.org/licenses/by/4.0/">Creative Commons Attribution 4.0 International License</a>.
+
+## Links
+
+* [origin](https://gitlab.n-t.io/core/library/go/fabric-sdk-go)
