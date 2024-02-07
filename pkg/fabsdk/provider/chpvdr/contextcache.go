@@ -22,6 +22,7 @@ import (
 
 type cache interface {
 	Get(lazycache.Key, ...interface{}) (interface{}, error)
+	Delete(lazycache.Key)
 	Close()
 }
 
@@ -176,6 +177,22 @@ func (c *contextCache) GetEventService(channelID string, opts ...options.Opt) (f
 	}
 
 	return eventService.(fab.EventService), nil
+}
+
+// DelEventService delete the EventService from cache.
+func (c *contextCache) DelEventService(channelID string, opts ...options.Opt) error {
+	chnlCfg, err := c.GetChannelConfig(channelID)
+	if err != nil {
+		return err
+	}
+	key, err := newEventCacheKey(chnlCfg, opts...)
+	if err != nil {
+		return err
+	}
+
+	c.eventServiceCache.Delete(key)
+
+	return nil
 }
 
 func (c *contextCache) GetChannelConfig(channelID string) (fab.ChannelCfg, error) {

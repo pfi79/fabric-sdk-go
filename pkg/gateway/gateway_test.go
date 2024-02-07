@@ -253,7 +253,6 @@ func TestGetNetworkWithUser(t *testing.T) {
 	gw, err := Connect(
 		WithConfig(config.FromFile("testdata/connection-tls.json")),
 		WithUser("user1"),
-		WithSmartBFT(),
 	)
 
 	if err != nil {

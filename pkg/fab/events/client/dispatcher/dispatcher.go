@@ -39,6 +39,7 @@ type Dispatcher struct {
 	peerMonitorDone        chan struct{}
 	peer                   fab.Peer
 	lock                   sync.RWMutex
+	stopDone               chan struct{}
 }
 
 // New creates a new dispatcher
@@ -53,6 +54,7 @@ func New(context context.Client, chConfig fab.ChannelCfg, discoveryService fab.D
 		chConfig:           chConfig,
 		discoveryService:   discoveryService,
 		connectionProvider: connectionProvider,
+		stopDone:           make(chan struct{}),
 	}
 	dispatcher.peerResolver = params.peerResolverProvider(dispatcher, context, chConfig.ID(), opts...)
 
@@ -89,6 +91,7 @@ func (ed *Dispatcher) HandleStopEvent(e esdispatcher.Event) {
 		close(ed.peerMonitorDone)
 		ed.peerMonitorDone = nil
 	}
+	close(ed.stopDone)
 
 	ed.Dispatcher.HandleStopEvent(e)
 }
@@ -136,7 +139,13 @@ func (ed *Dispatcher) HandleConnectEvent(e esdispatcher.Event) {
 	ed.connection = conn
 	ed.setConnectedPeer(peer)
 
-	go ed.connection.Receive(eventch)
+	go func() {
+		select {
+		case <-ed.Dispatcher.DispReady():
+			ed.connection.Receive(eventch)
+		case <-ed.stopDone:
+		}
+	}()
 
 	evt.ErrCh <- nil
 }
@@ -285,7 +294,7 @@ func (ed *Dispatcher) disconnected() bool {
 
 	logger.Warnf("The peer resolver determined that the event client should be disconnected from connected peer [%s] on channel [%s]. Disconnecting ...", connectedPeer.URL(), ed.chConfig.ID())
 
-	if err := ed.disconnect(); err != nil {
+	if err = ed.disconnect(); err != nil {
 		logger.Warnf("Error disconnecting event client from peer [%s] on channel [%s]: %s", connectedPeer.URL(), ed.chConfig.ID(), err)
 		return false
 	}
