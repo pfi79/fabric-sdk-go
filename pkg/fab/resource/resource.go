@@ -198,7 +198,7 @@ func JoinChannel(reqCtx reqContext.Context, request JoinChannelRequest, targets 
 		target := t
 		go func() {
 			defer wg.Done()
-			if _, err := queryChaincodeWithTarget(reqCtx, cir, target, optionsValue); err != nil {
+			if _, err = queryChaincodeWithTarget(reqCtx, cir, target, optionsValue); err != nil {
 				mutex.Lock()
 				errors1 = append(errors1, err)
 				mutex.Unlock()
@@ -260,7 +260,7 @@ func createOrUpdateChannel(reqCtx reqContext.Context, txh *txn.TransactionHeader
 		return errors.WithMessage(err, "CreatePayload failed")
 	}
 
-	_, err = txn.BroadcastPayload(reqCtx, payload, []fab.Orderer{request.Orderer})
+	_, err = txn.BroadcastPayload(reqCtx, payload, []fab.Orderer{request.Orderer}, false)
 	if err != nil {
 		return errors.WithMessage(err, "SendEnvelope failed")
 	}

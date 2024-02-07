@@ -122,8 +122,8 @@ func validateProposalResponses(responses []*fab.TransactionProposalResponse) err
 	return nil
 }
 
-// Send send a transaction to the chain’s orderer service (one or more orderer endpoints) for consensus and committing to the ledger.
-func Send(reqCtx reqContext.Context, tx *fab.Transaction, orderers []fab.Orderer) (*fab.TransactionResponse, error) {
+// Send a transaction to the chain’s orderer service (one or more orderer endpoints) for consensus and committing to the ledger.
+func Send(reqCtx reqContext.Context, tx *fab.Transaction, orderers []fab.Orderer, isBFT bool) (*fab.TransactionResponse, error) {
 	if len(orderers) == 0 {
 		return nil, errors.New("orderers is nil")
 	}
@@ -148,7 +148,7 @@ func Send(reqCtx reqContext.Context, tx *fab.Transaction, orderers []fab.Orderer
 	// create the payload
 	payload := common.Payload{Header: hdr, Data: txBytes}
 
-	transactionResponse, err := BroadcastPayload(reqCtx, &payload, orderers)
+	transactionResponse, err := BroadcastPayload(reqCtx, &payload, orderers, isBFT)
 	if err != nil {
 		return nil, err
 	}
@@ -158,7 +158,7 @@ func Send(reqCtx reqContext.Context, tx *fab.Transaction, orderers []fab.Orderer
 
 // BroadcastPayload will send the given payload to some orderer, picking random endpoints
 // until all are exhausted
-func BroadcastPayload(reqCtx reqContext.Context, payload *common.Payload, orderers []fab.Orderer) (*fab.TransactionResponse, error) {
+func BroadcastPayload(reqCtx reqContext.Context, payload *common.Payload, orderers []fab.Orderer, isBFT bool) (*fab.TransactionResponse, error) {
 	// Check if orderers are defined
 	if len(orderers) == 0 {
 		return nil, errors.New("orderers not set")
@@ -173,12 +173,7 @@ func BroadcastPayload(reqCtx reqContext.Context, payload *common.Payload, ordere
 		return nil, err
 	}
 
-	isSmartBFT, ok := context.RequestSmartBFT(reqCtx)
-	if !ok {
-		return nil, errors.New("failed get client smart bft flag from reqContext for broadcastEnvelope")
-	}
-
-	if isSmartBFT {
+	if isBFT {
 		return broadcastEnvelopeBFT(reqCtx, envelope, orderers)
 	}
 
@@ -194,7 +189,7 @@ func broadcastEnvelope(reqCtx reqContext.Context, envelope *fab.SignedEnvelope, 
 	}
 
 	// Copy aside the ordering service endpoints
-	randOrderers := []fab.Orderer{}
+	randOrderers := make([]fab.Orderer, 0, len(orderers))
 	randOrderers = append(randOrderers, orderers...)
 
 	// get a context client instance to create child contexts with timeout read from the config in sendBroadcast()
@@ -244,7 +239,10 @@ func broadcastEnvelopeBFT(reqCtx reqContext.Context, envelope *fab.SignedEnvelop
 	}
 
 	// Iterate them in a random order and try broadcasting 1 by 1
-	var cntResp int
+	var (
+		cntResp int
+		resps   []*TxResponseWithErrMsg
+	)
 
 	errs := multi.Errors{}
 	nForWait := quorum(nOrders)
@@ -262,10 +260,15 @@ func broadcastEnvelopeBFT(reqCtx reqContext.Context, envelope *fab.SignedEnvelop
 		}
 
 		cntResp++
+		resps = append(resps, resp)
 
-		if cntResp >= nForWait || i+1 == nOrders {
+		if cntResp >= nForWait {
 			return resp.TxResponse, nil
 		}
+	}
+
+	if cntResp != 0 {
+		return resps[0].TxResponse, nil
 	}
 
 	return nil, errs
@@ -304,7 +307,7 @@ func SendPayload(reqCtx reqContext.Context, payload *common.Payload, orderers []
 	}
 
 	// Copy aside the ordering service endpoints
-	randOrderers := []fab.Orderer{}
+	randOrderers := make([]fab.Orderer, 0, len(orderers))
 	randOrderers = append(randOrderers, orderers...)
 
 	// Iterate them in a random order and try broadcasting 1 by 1
