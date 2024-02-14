@@ -142,7 +142,11 @@ func (ed *Dispatcher) HandleConnectEvent(e esdispatcher.Event) {
 	go func() {
 		select {
 		case <-ed.Dispatcher.DispReady():
-			ed.connection.Receive(eventch)
+			if ed.connection != nil {
+				ed.connection.Receive(eventch)
+			} else {
+				time.Sleep(50 * time.Millisecond)
+			}
 		case <-ed.stopDone:
 		}
 	}()
