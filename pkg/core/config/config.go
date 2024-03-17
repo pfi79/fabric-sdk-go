@@ -62,6 +62,10 @@ func FromFile(name string, opts ...Option) core.ConfigProvider {
 		if err != nil {
 			return nil, errors.Wrapf(err, "loading config file failed: %s", name)
 		}
+		err = backend.configViper.MergeConfigMap(backend.configViper.AllSettings())
+		if err != nil {
+			return nil, errors.Wrapf(err, "loading config file failed: %s", name)
+		}
 
 		setLogLevel(backend)
 
@@ -122,7 +126,7 @@ func newBackend(opts ...Option) (*defConfigBackend, error) {
 
 	v := newViper(o.envPrefix)
 
-	//default backend for config
+	// default backend for config
 	backend := &defConfigBackend{
 		configViper: v,
 		opts:        o,
